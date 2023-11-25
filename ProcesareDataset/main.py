@@ -9,7 +9,7 @@ coloane_de_pastrat = [
 ]
 
 # Încărcați datele din fișierul CSV original
-df = pd.read_csv('dataset_booking(Brasov).csv')
+df = pd.read_csv('RAW_dataset_booking(Brasov).csv')
 
 # Selectați doar coloanele pe care doriți să le păstrați
 df_nou = df[coloane_de_pastrat].copy()
