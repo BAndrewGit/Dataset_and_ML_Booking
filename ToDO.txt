@@ -1,0 +1,2 @@
+Adaugarea optiunii de recomandare prin filtrare colaorativa
+Crearea unei aplicatii de procesare a dataseturilor cu o interfata grafica ce imbina Analiza cu Concatenare cu Procesare si adauga preturile lipsa

@@ -1,0 +1,28 @@
+O data ce am inceput proiectul nu am gasit un Dataset ce imi satisfacea nevoile
+
+Am decis sa fac un scrap si m-am folosit de Apify pentru a face un scrap la Booking.com
+
+Datele obtinute erau foarte "Murdare", aveam aproximativ 1950 de coloane, multe dintre ele erau 90% goale
+
+Am facut un Script de analiza a datasetului si am extras cele mai frecvente facilitati
+
+Am facut un script de procesare a datasetului ce imi pastra coloanele pe care le-am considerat folositoare pentru proiect, am transformat coloanele de note si pentru falcilitati am facut o selectie din analiza datasetului
+
+Am facut modelul pentru predictia pretului folosind regresia liniara, apoi am folosit DecisionTree
+
+Am scos valorile nule din dataset
+
+Am facut modelul pentru recomandari ce urmeaza urmatorii pasi:
+	1. Calcularea scorului de preferință pentru fiecare hotel pe baza notelor și a ponderilor furnizate de utilizator prin intermediul unui 	chestionar.
+	2. Filtrarea hotelurilor care nu îndeplinesc condițiile specifice ale utilizatorului si incadrarea in clustere.
+	3. Ordonarea hotelurilor rămase în funcție de scorul de preferință.
+	4. Ajustarea scorurilor de preferință pe baza facilităților oferite de fiecare hotel.
+
+Am constatat ca exista o eroare si anume intreaga coloana a facilitatii internet era 0, iar in urma unei verficari am observat ca era notat " Internet" in datasetul original asa ca am modificat codul pentru a-mi sterge spatiile de la inceput sau final
+
+La modelul de predictie a pretului am adaugat si predictia cu XGBoost si cu RandomForest, aceasta din urma avand eroarea cea mai mica
+
+La modelul de recomandare am adaugat un model ce foloseste SVD
+
+Am continuat sa fac scrape pentru a extinde baza de date, unde am intampinat o noua problema, am cateva valori null pe coloana "Price"
+
