@@ -14,13 +14,13 @@ from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 from sklearn.impute import SimpleImputer
 
-
+# Presupunând că aveți un DataFrame 'df' cu datele dvs.
 df = pd.read_csv('clean_dataset.csv')
 
-
+# Codificarea one-hot a câmpului 'type'
 df = pd.get_dummies(df, columns=['type'])
 
-
+# Selectarea caracteristicilor și a țintei
 caracteristici = df[['Frigider',
     'Cadă sau duş',
     'terasă',
@@ -30,25 +30,25 @@ caracteristici = df[['Frigider',
     'Pardoseală de lemn sau parchet']]
 tinta = df['price']
 
-
+# Crearea imputerului
 imputer = SimpleImputer(strategy='mean')
 
-
+# Împărțirea datelor în seturi de antrenament și de testare
 caracteristici_antrenament, caracteristici_testare, tinta_antrenament, tinta_testare = train_test_split(caracteristici, tinta, test_size=0.2, random_state=0)
 
-
+# Potrivirea imputerului și transformarea caracteristicilor și țintei
 caracteristici_antrenament_imputate = imputer.fit_transform(caracteristici_antrenament)
 caracteristici_testare_imputate = imputer.transform(caracteristici_testare)
 tinta_antrenament_imputata = imputer.fit_transform(tinta_antrenament.values.reshape(-1,1))
 
-
+# Crearea și antrenarea modelului
 model = LinearRegression()
 model.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
 
-
+# Realizarea predicțiilor
 tinta_predusa = model.predict(caracteristici_testare_imputate)
 
-
+# Evaluarea modelului
 print('Eroare absolută medie:', metrics.mean_absolute_error(tinta_testare, tinta_predusa))
 print('Eroare pătratică medie:', metrics.mean_squared_error(tinta_testare, tinta_predusa))
 print('Rădăcina erorii pătratice medii:', np.sqrt(metrics.mean_squared_error(tinta_testare, tinta_predusa)))
@@ -57,82 +57,115 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.tree import DecisionTreeClassifier
 
 
-
+# Crearea modelului
 model_arbore = DecisionTreeRegressor(random_state=0)
 
-
+# Antrenarea modelului
 model_arbore.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
 
-
+# Obținerea importanței caracteristicilor
 importanta_caracteristicilor = model_arbore.feature_importances_
 
 
-
+# Crearea unui DataFrame pentru a afișa importanța fiecărei caracteristici
 df_importanta = pd.DataFrame({
     'Facilitate': caracteristici.columns,
     'Importanta': importanta_caracteristicilor
 })
 
-
+# Sortarea caracteristicilor în funcție de importanța lor
 df_importanta = df_importanta.sort_values(by='Importanta', ascending=False)
 
-
+# Afișarea caracteristicilor sortate după importanța lor
 print(df_importanta)
 
-
+# Realizarea predicțiilor
 tinta_predusa_arbore = model_arbore.predict(caracteristici_testare_imputate)
 
-
+# Evaluarea modelului
 print('Eroare absolută medie:', metrics.mean_absolute_error(tinta_testare, tinta_predusa_arbore))
 print('Eroare pătratică medie:', metrics.mean_squared_error(tinta_testare, tinta_predusa_arbore))
 print('Rădăcina erorii pătratice medii:', np.sqrt(metrics.mean_squared_error(tinta_testare, tinta_predusa_arbore)))
 
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error
 
+# Crearea modelului
+model_xgb = xgb.XGBRegressor(objective ='reg:squarederror', random_state=0)
+
+# Antrenarea modelului
+model_xgb.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
+
+# Realizarea predicțiilor
+tinta_predusa_xgb = model_xgb.predict(caracteristici_testare_imputate)
+
+# Evaluarea modelului
+mse_xgb = mean_squared_error(tinta_testare, tinta_predusa_xgb)
+print('Eroarea pătratică medie pentru XGBoost:', mse_xgb)
+
+from sklearn.ensemble import RandomForestRegressor
+
+# Crearea modelului
+model_rf = RandomForestRegressor(random_state=0)
+
+# Antrenarea modelului
+model_rf.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata.ravel())
+
+# Realizarea predicțiilor
+tinta_predusa_rf = model_rf.predict(caracteristici_testare_imputate)
+
+# Evaluarea modelului
+mse_rf = mean_squared_error(tinta_testare, tinta_predusa_rf)
+print('Eroarea pătratică medie pentru Random Forest:', mse_rf)
+
+# Citirea datelor noi
 df_nou = pd.read_csv('Dataset_Vaslui.csv')
 
-
+# Selectarea caracteristicilor noi
 caracteristici_noi = df_nou[['Frigider', 'Cadă sau duş', 'terasă', 'Factură disponibilă la cerere', 'Uscător de păr', 'Duş', 'Pardoseală de lemn sau parchet']]
 
-
+# Crearea unui nou imputer pentru caracteristicile noi
 imputer_caracteristici = SimpleImputer(strategy='mean')
 
-
+# Potrivirea noului imputer pe caracteristicile de antrenament
 imputer_caracteristici.fit(caracteristici_antrenament)
 
-
+# Transformarea caracteristicilor noi cu noul imputer
 caracteristici_noi_imputate = imputer_caracteristici.transform(caracteristici_noi)
 
-
+# Realizarea predicțiilor cu toate modelele
 preturi_prezise_arbore = model_arbore.predict(caracteristici_noi_imputate)
 preturi_prezise_liniar = model.predict(caracteristici_noi_imputate)
+preturi_prezise_xgb = model_xgb.predict(caracteristici_noi_imputate)
+preturi_prezise_rf = model_rf.predict(caracteristici_noi_imputate)
 
-
-for cazare, pret_arbore, pret_liniar in zip(df_nou['name'], preturi_prezise_arbore, preturi_prezise_liniar):
-    print(f"Cazarea {cazare} are un preț prezis de {pret_arbore} (model arbore) și {pret_liniar} (model liniar)")
+# Afișarea predicțiilor
+for cazare, pret_arbore, pret_liniar, pret_xgb, pret_rf in zip(df_nou['name'], preturi_prezise_arbore, preturi_prezise_liniar, preturi_prezise_xgb, preturi_prezise_rf):
+    print(f"Cazarea {cazare} are un preț prezis de {pret_arbore} (model arbore), {pret_liniar} (model liniar), {pret_xgb} (model XGBoost) și {pret_rf} (model Random Forest)")
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
+# Histograma pentru variabila tinta
 plt.figure(figsize=(8,6))
 sns.histplot(df['price'], kde=True)
 plt.title('Distribuția prețurilor')
 plt.show()
 
-
+# Matricea de corelație
 correlation_matrix=df.corr(numeric_only=True)
 plt.figure(figsize=(10,8))
 sns.heatmap(correlation_matrix, annot=False, cmap='coolwarm', linewidths=0.5)
 plt.title('Matricea de corelație')
 plt.show()
 
-
+# Importanța caracteristicilor
 plt.figure(figsize=(10,8))
 sns.barplot(x='Importanta', y='Facilitate', data=df_importanta)
 plt.title('Importanța caracteristicilor')
 plt.show()
 
-
+# Plotul reziduurilor pentru modelul de regresie liniară
 plt.figure(figsize=(8,6))
 sns.residplot(x=tinta_testare, y=tinta_predusa.flatten(), lowess=True)
 plt.title('Plotul reziduurilor pentru modelul de regresie liniară')
@@ -140,7 +173,7 @@ plt.xlabel('Valoarea actuală')
 plt.ylabel('Reziduuri')
 plt.show()
 
-
+# Plotul reziduurilor pentru modelul de arbore de decizie
 plt.figure(figsize=(8,6))
 sns.residplot(x=tinta_testare, y=tinta_predusa_arbore.flatten(), lowess=True)
 plt.title('Plotul reziduurilor pentru modelul de arbore de decizie')
@@ -148,7 +181,7 @@ plt.xlabel('Valoarea actuală')
 plt.ylabel('Reziduuri')
 plt.show()
 
-
+# Plotul erorii de predicție pentru modelul de regresie liniară
 plt.figure(figsize=(8,6))
 plt.scatter(tinta_testare, tinta_predusa)
 plt.title('Plotul erorii de predicție pentru modelul de regresie liniară')
@@ -156,7 +189,7 @@ plt.xlabel('Valoarea actuală')
 plt.ylabel('Valoarea prezisă')
 plt.show()
 
-
+# Plotul erorii de predicție pentru modelul de arbore de decizie
 plt.figure(figsize=(8,6))
 plt.scatter(tinta_testare, tinta_predusa_arbore)
 plt.title('Plotul erorii de predicție pentru modelul de arbore de decizie')

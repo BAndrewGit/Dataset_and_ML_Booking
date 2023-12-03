@@ -37,8 +37,6 @@ else:
 # Lista dvs. de cazări preferate
 preferred_accommodations = ['Cabana Sebes Bera', 'Casa de Vacanță S&B', 'Apartament doua camere Retro view']
 
-
-
 from sklearn.cluster import KMeans
 
 # Creăm un model KMeans cu un număr specific de clustere
@@ -75,3 +73,27 @@ for index, row in df.iterrows():
 
 # Afișăm primele 5 hoteluri cu cel mai mare scor de preferință
 print(df.nlargest(5, 'preference_score'))
+
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+# Selectați caracteristicile pe care doriți să le utilizați (de exemplu, ratingurile)
+features = ['price', 'Nota Personal', 'Nota Facilităţi', 'Nota Curăţenie', 'Nota Confort', 'Nota Raport calitate/preţ', 'Nota Locaţie', 'Nota WiFi gratuit',
+            'Frigider', 'Cadă sau duş', 'terasă', 'Factură disponibilă la cerere', 'Uscător de păr',  'Duş', 'Pardoseală de lemn sau parchet']
+
+# Creați o matrice de caracteristici
+X = df[features].values
+
+# Aplicați SVD
+svd = TruncatedSVD(n_components=5)
+X_reduced = svd.fit_transform(X)
+
+# Calculați similaritățile între hoteluri
+similarities = cosine_similarity(X_reduced)
+
+# Găsiți hotelurile cele mai similare cu primul hotel
+top5_similar = np.argsort(similarities[0])[-6:-1][::-1]
+
+# Afișați numele hotelurilor cele mai similare
+print(df.iloc[top5_similar]['name'])
