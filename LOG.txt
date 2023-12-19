@@ -26,3 +26,11 @@ La modelul de recomandare am adaugat un model ce foloseste SVD
 
 Am continuat sa fac scrape pentru a extinde baza de date, unde am intampinat o noua problema, am cateva valori null pe coloana "Price"
 
+Am completat datasetul si am extras din nou facilitatile cele mai populare.
+
+Am crescut numarul de coloane codificate cu one-hot, am pus toate caracteristicile si am observat o injumatatire a erorii patratice medii inafara de Decision Tree unde a mai crescut putin
+
+Am ibunatatit preprocesarea datasetului eliminand coloanele duble si a campurilor lacunare, deoarece nu mai mergea sistemul de recomandare, iar acum predictia prin regresie liniara nu mai functioneaza in parametrii optimi, in rest se observa o imbunatatire la celelalte modele de predictie
+
+
+

@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Încărcați datele
-df = pd.read_csv('dataset_booking(Brasov).csv')
+df = pd.read_csv('dataset_Romania.csv')
 
 # Creați un dicționar pentru a stoca frecvențele
 frecvente = {}
@@ -24,3 +24,4 @@ frecvente_sortate = sorted(frecvente.items(), key=lambda x: x[1], reverse=False)
 for facil, freq in frecvente_sortate:
     if not pd.isnull(facil):
         print(f'{facil}: {freq}')
+print(f'Numărul total de entități din setul de date este: {len(df)}')

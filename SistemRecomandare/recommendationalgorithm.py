@@ -10,7 +10,7 @@ Original file is located at
 import pandas as pd
 
 
-df = pd.read_csv('clean_dataset.csv')
+df = pd.read_csv('clean_dataset_Romania.csv')
 
 # Notațiile acordate de utilizator pentru fiecare categorie
 user_ratings = {
@@ -78,22 +78,36 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+# Codificarea one-hot
+df = pd.get_dummies(df, columns=['type', 'address/region', 'rooms/0/persons', 'rooms/0/roomType', 'breakfast', 'stars'])
+
+# Creează o listă cu numele coloanelor codificate cu one-hot
+one_hot_columns = [col for col in df.columns if 'type_' in col or 'address/region_' in col or 'rooms/0/persons_'
+                   in col or 'rooms/0/roomType_' in col or 'breakfast_' in col or 'stars_' in col]
+
 # Selectați caracteristicile pe care doriți să le utilizați (de exemplu, ratingurile)
-features = ['price', 'Nota Personal', 'Nota Facilităţi', 'Nota Curăţenie', 'Nota Confort', 'Nota Raport calitate/preţ', 'Nota Locaţie', 'Nota WiFi gratuit',
-            'Frigider', 'Cadă sau duş', 'terasă', 'Factură disponibilă la cerere', 'Uscător de păr',  'Duş', 'Pardoseală de lemn sau parchet']
+selected_columns = one_hot_columns + ['price', 'Nota Personal', 'Nota Facilităţi', 'Nota Curăţenie', 'Nota Confort', 'Nota Raport calitate/preţ', 'Nota Locaţie', 'Nota WiFi gratuit',
+                                      'Vedere la oraș', 'Menaj zilnic', 'Canale prin satelit', 'Zonă de luat masa în aer liber', 'Cadă',
+                                      'Facilităţi de călcat', 'Izolare fonică', 'terasă la soare', 'Pardoseală de gresie/marmură',
+                                      'Papuci de casă', 'uscător de rufe', 'Animale de companie', 'Încălzire', 'Birou', 'mobilier exterior',
+                                      'Alarmă de fum', 'Vedere la grădină', 'Cuptor', 'Cuptor cu microunde', 'Zonă de relaxare', 'Canapea',
+                                      'Intrare privată', 'Fier de călcat', 'Mașină de cafea', 'Plită de gătit', 'Extinctoare', 'Cană fierbător',
+                                      'grădină', 'Ustensile de bucătărie', 'Maşină de spălat', 'Balcon', 'Pardoseală de lemn sau parchet',
+                                      'Aparat pentru prepararea de ceai/cafea', 'Zonă de luat masa', 'Canale prin cablu', 'aer condiţionat',
+                                      'Masă', 'Suport de haine', 'Cadă sau duş', 'Frigider']
 
 # Creați o matrice de caracteristici
-X = df[features].values
+X = df[selected_columns].values
 
-# Aplicați SVD
+# Aplicam SVD
 svd = TruncatedSVD(n_components=5)
 X_reduced = svd.fit_transform(X)
 
-# Calculați similaritățile între hoteluri
+# Calculam similaritățile între hoteluri
 similarities = cosine_similarity(X_reduced)
 
-# Găsiți hotelurile cele mai similare cu primul hotel
+# Găsim hotelurile cele mai similare cu primul hotel
 top5_similar = np.argsort(similarities[0])[-6:-1][::-1]
 
-# Afișați numele hotelurilor cele mai similare
+# Afișam numele hotelurilor cele mai similare
 print(df.iloc[top5_similar]['name'])

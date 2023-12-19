@@ -10,141 +10,393 @@ Original file is located at
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 
-# Presupunând că aveți un DataFrame 'df' cu datele dvs.
-df = pd.read_csv('clean_dataset.csv')
+df = pd.read_csv('clean_dataset_Romania.csv')
 
-# Codificarea one-hot a câmpului 'type'
-df = pd.get_dummies(df, columns=['type'])
+# Codificarea one-hot
+df = pd.get_dummies(df, columns=['type', 'address/region', 'rooms/0/persons', 'rooms/0/roomType', 'breakfast', 'stars'])
 
-# Selectarea caracteristicilor și a țintei
-caracteristici = df[['Frigider',
-    'Cadă sau duş',
-    'terasă',
-    'Factură disponibilă la cerere',
-    'Uscător de păr',
-    'Duş',
-    'Pardoseală de lemn sau parchet']]
-tinta = df['price']
+# Creează o listă cu numele coloanelor codificate cu one-hot
+one_hot_columns = [col for col in df.columns if 'type_' in col or 'address/region_' in col or 'rooms/0/persons_'
+                   in col or 'rooms/0/roomType_' in col or 'breakfast_' in col or 'stars_' in col]
 
-# Crearea imputerului
+# Adaugă coloanele predefinite la listă
+selected_columns = one_hot_columns + ['Vedere la oraș', 'Menaj zilnic', 'Canale prin satelit', 'Zonă de luat masa în aer liber', 'Cadă',
+              'Facilităţi de călcat', 'Izolare fonică', 'terasă la soare', 'Pardoseală de gresie/marmură',
+              'Papuci de casă', 'uscător de rufe', 'Animale de companie', 'Încălzire', 'Birou', 'mobilier exterior',
+              'Alarmă de fum', 'Vedere la grădină', 'Cuptor', 'Cuptor cu microunde', 'Zonă de relaxare', 'Canapea',
+              'Intrare privată', 'Fier de călcat', 'Mașină de cafea', 'Plită de gătit', 'Extinctoare', 'Cană fierbător',
+              'grădină', 'Ustensile de bucătărie', 'Maşină de spălat', 'Balcon', 'Pardoseală de lemn sau parchet',
+              'Aparat pentru prepararea de ceai/cafea', 'Zonă de luat masa', 'Canale prin cablu', 'aer condiţionat',
+              'Masă', 'Suport de haine', 'Cadă sau duş', 'Frigider']
+
+# Selectează doar coloanele dorite din DataFrame
+features = df[selected_columns]
+target = df['price']
+
+# Împărțirea datelor în seturi de invatare, testare și validare
+df_validate, df_temp = train_test_split(df, test_size=2500, random_state=42)
+df_train, df_test = train_test_split(df_temp, test_size=0.2, random_state=42)
+
+# Selectarea caracteristicilor și a țintei pentru fiecare set de date
+features_train = df_train[features.columns]
+target_train = df_train['price']
+
+features_test = df_test[features.columns]
+target_test = df_test['price']
+
+# Crearea imputerului pentru a inlocui valorile lipsa
 imputer = SimpleImputer(strategy='mean')
 
-# Împărțirea datelor în seturi de antrenament și de testare
-caracteristici_antrenament, caracteristici_testare, tinta_antrenament, tinta_testare = train_test_split(caracteristici, tinta, test_size=0.2, random_state=0)
+features_train = imputer.fit_transform(features_train)
+features_test = imputer.transform(features_test)
 
-# Potrivirea imputerului și transformarea caracteristicilor și țintei
-caracteristici_antrenament_imputate = imputer.fit_transform(caracteristici_antrenament)
-caracteristici_testare_imputate = imputer.transform(caracteristici_testare)
-tinta_antrenament_imputata = imputer.fit_transform(tinta_antrenament.values.reshape(-1,1))
+# Eliminare Outlieri
+Q1 = df['price'].quantile(0.25)
+Q3 = df['price'].quantile(0.75)
+IQR = Q3 - Q1
 
-# Crearea și antrenarea modelului
+df_optimized = df[(df['price'] >= Q1 - 1.5 * IQR) & (df['price'] <= Q3 + 1.5 * IQR)]
+#https://www.geeksforgeeks.org/interquartile-range-to-detect-outliers-in-data/
+#https://builtin.com/data-science/how-to-find-outliers-with-iqr
+
+#+print distributie valori inainte si dupa eliminare
+
+# Antrenare model pe datele curățate
+features_optimized = df_optimized[selected_columns]
+target_optimized = df_optimized['price']
+
+# Împărțirea datelor în seturi de antrenament și testare
+features_train_optimized, features_test_optimized, target_train_optimized, target_test_optimized = train_test_split(features_optimized, target_optimized, test_size=0.2, random_state=0)
+#+cross validation https://scikit-learn.org/stable/modules/cross_validation.html   cv=5 dar si 10
+# Normalizare și scalare
+scaler = StandardScaler()
+features_train_scaled = scaler.fit_transform(features_train_optimized)
+features_test_scaled = scaler.transform(features_test_optimized)
+
+# Selectarea caracteristicilor și a țintei pentru setul de validare
+features_validate = df_validate[features.columns]
+target_validate = df_validate['price']
+
+# Înlocuirea valorilor lipsă
+features_validate = imputer.transform(features_validate)
+
+# Eliminare Outlieri pentru setul de validare
+df_validate_optimized = df_validate[(df_validate['price'] >= Q1 - 1.5 * IQR) & (df_validate['price'] <= Q3 + 1.5 * IQR)]
+
+# Selectarea caracteristicilor și a țintei pentru setul de validare optimizat
+features_validate_optimized = df_validate_optimized[selected_columns]
+target_validate_optimized = df_validate_optimized['price']
+
+# Normalizare și scalare pentru setul de validare optimizat
+features_validate_scaled = scaler.transform(features_validate_optimized)
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+# Crearea modelului
+model_optimized = LinearRegression()
 model = LinearRegression()
-model.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
 
-# Realizarea predicțiilor
-tinta_predusa = model.predict(caracteristici_testare_imputate)
+# Antrenarea modelului pe datele optimizate
+model_optimized.fit(features_train_optimized, target_train_optimized)
 
-# Evaluarea modelului
-print('Eroare absolută medie:', metrics.mean_absolute_error(tinta_testare, tinta_predusa))
-print('Eroare pătratică medie:', metrics.mean_squared_error(tinta_testare, tinta_predusa))
-print('Rădăcina erorii pătratice medii:', np.sqrt(metrics.mean_squared_error(tinta_testare, tinta_predusa)))
+# Antrenarea modelului pe datele originale (neoptimizate)
+model.fit(features_train, target_train)
+
+# Realizarea predicțiilor pe datele de testare optimizate
+target_predicted_test_optimized = model_optimized.predict(features_test_optimized)
+
+# Efectuarea de predicții pe setul de testare original
+target_predicted_test = model.predict(features_test)
+
+# Evaluarea modelului pe datele de testare optimizate
+print('Eroare absolută medie (LinearRegression, Optimizat):', metrics.mean_absolute_error(target_test_optimized, target_predicted_test_optimized))
+print('Eroare pătratică medie (LinearRegression, Optimizat):', metrics.mean_squared_error(target_test_optimized, target_predicted_test_optimized))
+print('Rădăcina erorii pătratice medii (LinearRegression, Optimizat):', np.sqrt(metrics.mean_squared_error(target_test_optimized, target_predicted_test_optimized)))
+
+# Evaluarea modelului pe setul de testare original
+print('\nEroare absolută medie (LinearRegression, Neoptimizat):', metrics.mean_absolute_error(target_test, target_predicted_test))
+print('Eroare pătratică medie (LinearRegression, Neoptimizat):', metrics.mean_squared_error(target_test, target_predicted_test))
+print('Rădăcina erorii pătratice medii (LinearRegression, Neoptimizat):', np.sqrt(metrics.mean_squared_error(target_test, target_predicted_test)))
 
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.tree import DecisionTreeClassifier
 
-
 # Crearea modelului
-model_arbore = DecisionTreeRegressor(random_state=0)
+model_tree_optimized = DecisionTreeRegressor(random_state=0)
+model_tree = DecisionTreeRegressor(random_state=0)
 
-# Antrenarea modelului
-model_arbore.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
+# Antrenarea modelului pe datele optimizate
+model_tree_optimized.fit(features_train_optimized, target_train_optimized)
 
+# Antrenarea modelului pe datele originale (neoptimizate)
+model_tree.fit(features_train, target_train)
+
+# Realizarea predicțiilor pe datele de testare optimizate
+target_predicted_test_tree_optimized = model_tree_optimized.predict(features_test_optimized)
+
+# Efectuarea de predicții pe setul de testare original
+target_predicted_test_tree = model_tree.predict(features_test)
+
+# Evaluarea modelului pe datele de testare optimizate
+print('Eroare absolută medie (DecisionTreeRegressor, Optimizat):', metrics.mean_absolute_error(target_test_optimized, target_predicted_test_tree_optimized))
+print('Eroare pătratică medie (DecisionTreeRegressor, Optimizat):', metrics.mean_squared_error(target_test_optimized, target_predicted_test_tree_optimized))
+print('Rădăcina erorii pătratice medii (DecisionTreeRegressor, Optimizat):', np.sqrt(metrics.mean_squared_error(target_test_optimized, target_predicted_test_tree_optimized)))
+
+# Evaluarea modelului pe setul de testare original
+print('\nEroare absolută medie (DecisionTreeRegressor, Neoptimizat):', metrics.mean_absolute_error(target_test, target_predicted_test_tree))
+print('Eroare pătratică medie (DecisionTreeRegressor, Neoptimizat):', metrics.mean_squared_error(target_test, target_predicted_test_tree))
+print('Rădăcina erorii pătratice medii (DecisionTreeRegressor, Neoptimizat):', np.sqrt(metrics.mean_squared_error(target_test, target_predicted_test_tree)))
+print('\n')
+# + scara de valori sau transformare in procent
 # Obținerea importanței caracteristicilor
-importanta_caracteristicilor = model_arbore.feature_importances_
+feature_importances = model_tree.feature_importances_
 
+# Creează o funcție care extrage numele de bază al coloanei
+def extract_base_name(col_name):
+    # Extrage numele de bază al coloanei
+    if '_' in col_name:
+        base_name = col_name.split('_')[0]
+    else:
+        base_name = col_name
+    return base_name
 
 # Crearea unui DataFrame pentru a afișa importanța fiecărei caracteristici
-df_importanta = pd.DataFrame({
-    'Facilitate': caracteristici.columns,
-    'Importanta': importanta_caracteristicilor
+df_importance = pd.DataFrame({
+    'Facilitate': features.columns,
+    'Importanta': feature_importances
 })
 
+# Aplică funcția la coloana 'Facilitate'
+df_importance['Facilitate'] = df_importance['Facilitate'].apply(extract_base_name)
+
+# Gruparea DataFrame-ului după 'Facilitate' și calcularea importanței maxime pentru fiecare grup
+df_importance = df_importance.groupby('Facilitate').max()
+
+# Resetează indexul DataFrame-ului
+df_importance = df_importance.reset_index()
+
 # Sortarea caracteristicilor în funcție de importanța lor
-df_importanta = df_importanta.sort_values(by='Importanta', ascending=False)
+df_importance = df_importance.sort_values(by='Importanta', ascending=False)
 
 # Afișarea caracteristicilor sortate după importanța lor
-print(df_importanta)
-
-# Realizarea predicțiilor
-tinta_predusa_arbore = model_arbore.predict(caracteristici_testare_imputate)
-
-# Evaluarea modelului
-print('Eroare absolută medie:', metrics.mean_absolute_error(tinta_testare, tinta_predusa_arbore))
-print('Eroare pătratică medie:', metrics.mean_squared_error(tinta_testare, tinta_predusa_arbore))
-print('Rădăcina erorii pătratice medii:', np.sqrt(metrics.mean_squared_error(tinta_testare, tinta_predusa_arbore)))
+print(df_importance)
 
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 
 # Crearea modelului
+model_xgb_optimized = xgb.XGBRegressor(objective ='reg:squarederror', random_state=0)
 model_xgb = xgb.XGBRegressor(objective ='reg:squarederror', random_state=0)
 
-# Antrenarea modelului
-model_xgb.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata)
+# Antrenarea modelului pe datele optimizate
+model_xgb_optimized.fit(features_train_optimized, target_train_optimized)
 
-# Realizarea predicțiilor
-tinta_predusa_xgb = model_xgb.predict(caracteristici_testare_imputate)
+# Antrenarea modelului pe datele originale (neoptimizate)
+model_xgb.fit(features_train, target_train)
 
-# Evaluarea modelului
-mse_xgb = mean_squared_error(tinta_testare, tinta_predusa_xgb)
-print('Eroarea pătratică medie pentru XGBoost:', mse_xgb)
+# Realizarea predicțiilor pe datele de testare optimizate
+target_predicted_test_xgb_optimized = model_xgb_optimized.predict(features_test_optimized)
 
-from sklearn.ensemble import RandomForestRegressor
+# Efectuarea de predicții pe setul de testare original
+target_predicted_test_xgb = model_xgb.predict(features_test)
+
+# Evaluarea modelului pe datele de testare optimizate
+print('Eroare absolută medie (XGBoost, Optimizat):', metrics.mean_absolute_error(target_test_optimized, target_predicted_test_xgb_optimized))
+print('Eroare pătratică medie (XGBoost, Optimizat):', metrics.mean_squared_error(target_test_optimized, target_predicted_test_xgb_optimized))
+print('Rădăcina erorii pătratice medii (XGBoost, Optimizat):', np.sqrt(metrics.mean_squared_error(target_test_optimized, target_predicted_test_xgb_optimized)))
+
+# Evaluarea modelului pe setul de testare original
+print('\nEroare absolută medie (XGBoost, Neoptimizat):', metrics.mean_absolute_error(target_test, target_predicted_test_xgb))
+print('Eroare pătratică medie (XGBoost, Neoptimizat):', metrics.mean_squared_error(target_test, target_predicted_test_xgb))
+print('Rădăcina erorii pătratice medii (XGBoost, Neoptimizat):', np.sqrt(metrics.mean_squared_error(target_test, target_predicted_test_xgb)))
+
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error
 
 # Crearea modelului
+model_ridge = Ridge()
+
+# Definirea grilei de căutare pentru hiperparametri
+param_grid = {'alpha': [0.1, 1, 10, 100]}
+
+# Inițializarea grid search
+grid_search = GridSearchCV(model_ridge, param_grid, cv=5, scoring='neg_mean_squared_error')
+
+# Antrenarea modelului cu grid search
+grid_search.fit(features_train_optimized, target_train_optimized)
+
+# Crearea modelului cu cei mai buni hiperparametri
+model_ridge_optimized = Ridge(alpha=grid_search.best_params_['alpha'])
+model_ridge = Ridge(alpha=grid_search.best_params_['alpha'])
+
+# Antrenarea modelului pe datele optimizate
+model_ridge_optimized.fit(features_train_optimized, target_train_optimized)
+
+# Antrenarea modelului pe datele originale (neoptimizate)
+model_ridge.fit(features_train, target_train)
+
+# Realizarea predicțiilor pe datele de testare optimizate
+target_predicted_test_ridge_optimized = model_ridge_optimized.predict(features_test_optimized)
+
+# Efectuarea de predicții pe setul de testare original
+target_predicted_test_ridge = model_ridge.predict(features_test)
+
+# Evaluarea modelului pe datele de testare optimizate
+print('Eroare absolută medie (Ridge, Optimizat):', metrics.mean_absolute_error(target_test_optimized, target_predicted_test_ridge_optimized))
+print('Eroare pătratică medie (Ridge, Optimizat):', metrics.mean_squared_error(target_test_optimized, target_predicted_test_ridge_optimized))
+print('Rădăcina erorii pătratice medii (Ridge, Optimizat):', np.sqrt(metrics.mean_squared_error(target_test_optimized, target_predicted_test_ridge_optimized)))
+
+# Evaluarea modelului pe setul de testare original
+print('\nEroare absolută medie (Ridge, Neoptimizat):', metrics.mean_absolute_error(target_test, target_predicted_test_ridge))
+print('Eroare pătratică medie (Ridge, Neoptimizat):', metrics.mean_squared_error(target_test, target_predicted_test_ridge))
+print('Rădăcina erorii pătratice medii (Ridge, Neoptimizat):', np.sqrt(metrics.mean_squared_error(target_test, target_predicted_test_ridge)))
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+# Crearea modelului
+model_rf_optimized = RandomForestRegressor(random_state=0)
 model_rf = RandomForestRegressor(random_state=0)
 
-# Antrenarea modelului
-model_rf.fit(caracteristici_antrenament_imputate, tinta_antrenament_imputata.ravel())
+# Antrenarea modelului pe datele optimizate
+model_rf_optimized.fit(features_train_optimized, target_train_optimized.ravel())
 
-# Realizarea predicțiilor
-tinta_predusa_rf = model_rf.predict(caracteristici_testare_imputate)
+# Antrenarea modelului pe datele originale (neoptimizate)
+model_rf.fit(features_train, target_train.ravel())
 
-# Evaluarea modelului
-mse_rf = mean_squared_error(tinta_testare, tinta_predusa_rf)
-print('Eroarea pătratică medie pentru Random Forest:', mse_rf)
+# Realizarea predicțiilor pe datele de testare optimizate
+target_predicted_test_rf_optimized = model_rf_optimized.predict(features_test_optimized)
 
-# Citirea datelor noi
-df_nou = pd.read_csv('Dataset_Vaslui.csv')
+# Efectuarea de predicții pe setul de testare original
+target_predicted_test_rf = model_rf.predict(features_test)
 
-# Selectarea caracteristicilor noi
-caracteristici_noi = df_nou[['Frigider', 'Cadă sau duş', 'terasă', 'Factură disponibilă la cerere', 'Uscător de păr', 'Duş', 'Pardoseală de lemn sau parchet']]
+# Evaluarea modelului pe datele de testare optimizate
+print('Eroare absolută medie (Random Forest, Optimizat):', metrics.mean_absolute_error(target_test_optimized, target_predicted_test_rf_optimized))
+print('Eroare pătratică medie (Random Forest, Optimizat):', metrics.mean_squared_error(target_test_optimized, target_predicted_test_rf_optimized))
+print('Rădăcina erorii pătratice medii (Random Forest, Optimizat):', np.sqrt(metrics.mean_squared_error(target_test_optimized, target_predicted_test_rf_optimized)))
 
-# Crearea unui nou imputer pentru caracteristicile noi
-imputer_caracteristici = SimpleImputer(strategy='mean')
+# Evaluarea modelului pe setul de testare original
+print('\nEroare absolută medie (Random Forest, Neoptimizat):', metrics.mean_absolute_error(target_test, target_predicted_test_rf))
+print('Eroare pătratică medie (Random Forest, Neoptimizat):', metrics.mean_squared_error(target_test, target_predicted_test_rf))
+print('Rădăcina erorii pătratice medii (Random Forest, Neoptimizat):', np.sqrt(metrics.mean_squared_error(target_test, target_predicted_test_rf)))
 
-# Potrivirea noului imputer pe caracteristicile de antrenament
-imputer_caracteristici.fit(caracteristici_antrenament)
+import matplotlib.pyplot as plt
 
-# Transformarea caracteristicilor noi cu noul imputer
-caracteristici_noi_imputate = imputer_caracteristici.transform(caracteristici_noi)
+# Antrenarea modelelor pe datele originale
+model_tree.fit(features_train, target_train)
+model_xgb.fit(features_train, target_train)
+model_ridge.fit(features_train, target_train)
+model_rf.fit(features_train, target_train)
 
-# Realizarea predicțiilor cu toate modelele
-preturi_prezise_arbore = model_arbore.predict(caracteristici_noi_imputate)
-preturi_prezise_liniar = model.predict(caracteristici_noi_imputate)
-preturi_prezise_xgb = model_xgb.predict(caracteristici_noi_imputate)
-preturi_prezise_rf = model_rf.predict(caracteristici_noi_imputate)
+# Realizarea predicțiilor cu toate modelele pe setul de date original
+prices_predicted_tree = model_tree.predict(features_validate)
+prices_predicted_xgb = model_xgb.predict(features_validate)
+prices_predicted_ridge = model_ridge.predict(features_validate)
+prices_predicted_rf = model_rf.predict(features_validate)
 
-# Afișarea predicțiilor
-for cazare, pret_arbore, pret_liniar, pret_xgb, pret_rf in zip(df_nou['name'], preturi_prezise_arbore, preturi_prezise_liniar, preturi_prezise_xgb, preturi_prezise_rf):
-    print(f"Cazarea {cazare} are un preț prezis de {pret_arbore} (model arbore), {pret_liniar} (model liniar), {pret_xgb} (model XGBoost) și {pret_rf} (model Random Forest)")
+# Antrenarea modelelor pe datele optimizate
+model_tree_optimized.fit(features_train_optimized, target_train_optimized)
+model_xgb_optimized.fit(features_train_optimized, target_train_optimized)
+model_ridge_optimized.fit(features_train_optimized, target_train_optimized)
+model_rf_optimized.fit(features_train_optimized, target_train_optimized)
+
+# Realizarea predicțiilor cu toate modelele pe setul de date optimizat
+prices_predicted_tree_optimized = model_tree_optimized.predict(features_validate_optimized)
+prices_predicted_xgb_optimized = model_xgb_optimized.predict(features_validate_optimized)
+prices_predicted_ridge_optimized = model_ridge_optimized.predict(features_validate_optimized)
+prices_predicted_rf_optimized = model_rf_optimized.predict(features_validate_optimized)
+
+# Crearea unui DataFrame cu prețurile reale și predicțiile pentru setul de date optimizat
+df_plot = pd.DataFrame({
+    'Real': target_validate,
+    'Decision Tree': prices_predicted_tree,
+    'XGB': prices_predicted_xgb,
+    'Ridge': prices_predicted_ridge,
+    'Random Forest': prices_predicted_rf
+})
+
+# Sortarea entităților după prețul real în ordine crescătoare pentru setul de date optimizat
+df_plot = df_plot.sort_values('Real')
+
+# Resetarea indexului pentru setul de date optimizat
+df_plot = df_plot.reset_index(drop=True)
+
+# Crearea unui DataFrame cu prețurile reale și predicțiile pentru setul de date optimizat
+df_plot_optimized = pd.DataFrame({
+    'Real': target_validate_optimized,
+    'Decision Tree': prices_predicted_tree_optimized,
+    'XGB': prices_predicted_xgb_optimized,
+    'Ridge': prices_predicted_ridge_optimized,
+    'Random Forest': prices_predicted_rf_optimized
+})
+
+# Sortarea entităților după prețul real în ordine crescătoare pentru setul de date optimizat
+df_plot_optimized = df_plot_optimized.sort_values('Real')
+
+# Resetarea indexului pentru setul de date optimizat
+df_plot_optimized = df_plot_optimized.reset_index(drop=True)
+
+# Crearea graficelor pentru setul de date original
+plt.figure(figsize=(12, 6))
+plt.plot(df_plot['Real'], label='Real')
+plt.plot(df_plot['Decision Tree'], label='Decision Tree')
+plt.plot(df_plot['XGB'], label='XGB')
+plt.plot(df_plot['Ridge'], label='Ridge')
+plt.plot(df_plot['Random Forest'], label='Random Forest')
+plt.xlabel('Indexul entitatii')
+plt.ylabel('Pret')
+plt.legend()
+plt.title('Predicții pe setul de date original')
+plt.show()
+
+# Calcularea erorii medii procentuale absolute (MAPE) pentru fiecare model pe setul de date original
+mape_tree = 100 * np.mean(np.abs((target_validate - prices_predicted_tree) / target_validate))
+print('Eroarea medie procentuală absolută pentru Decision Tree (Original):', mape_tree)
+
+mape_xgb = 100 * np.mean(np.abs((target_validate - prices_predicted_xgb) / target_validate))
+print('Eroarea medie procentuală absolută pentru XGBoost (Original):', mape_xgb)
+
+mape_ridge = 100 * np.mean(np.abs((target_validate - prices_predicted_ridge) / target_validate))
+print('Eroarea medie procentuală absolută pentru Ridge (Original):', mape_ridge)
+
+mape_rf = 100 * np.mean(np.abs((target_validate - prices_predicted_rf) / target_validate))
+print('Eroarea medie procentuală absolută pentru Random Forest (Original):', mape_rf)
+print('\n')
+
+# Crearea graficelor pentru setul de date optimizat
+plt.figure(figsize=(12, 6))
+plt.plot(df_plot_optimized['Real'], label='Real')
+plt.plot(df_plot_optimized['Decision Tree'], label='Decision Tree')
+plt.plot(df_plot_optimized['XGB'], label='XGB')
+plt.plot(df_plot_optimized['Ridge'], label='Ridge')
+plt.plot(df_plot_optimized['Random Forest'], label='Random Forest')
+plt.xlabel('Indexul entitatii')
+plt.ylabel('Pret')
+plt.legend()
+plt.title('Predicții pe setul de date optimizat')
+plt.show()
+# Calcularea erorii medii procentuale absolute (MAPE) pentru fiecare model pe setul de date optimizat
+mape_tree_optimized = 100 * np.mean(np.abs((target_validate_optimized - prices_predicted_tree_optimized) / target_validate_optimized))
+print('\nEroarea medie procentuală absolută pentru Decision Tree (Optimizat):', mape_tree_optimized)
+
+mape_xgb_optimized = 100 * np.mean(np.abs((target_validate_optimized - prices_predicted_xgb_optimized) / target_validate_optimized))
+print('Eroarea medie procentuală absolută pentru XGBoost (Optimizat):', mape_xgb_optimized)
+
+mape_ridge_optimized = 100 * np.mean(np.abs((target_validate_optimized - prices_predicted_ridge_optimized) / target_validate_optimized))
+print('Eroarea medie procentuală absolută pentru Ridge (Optimizat):', mape_ridge_optimized)
+
+mape_rf_optimized = 100 * np.mean(np.abs((target_validate_optimized - prices_predicted_rf_optimized) / target_validate_optimized))
+print('Eroarea medie procentuală absolută pentru Random Forest (Optimizat):', mape_rf_optimized)
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.decomposition import PCA
 
 # Histograma pentru variabila tinta
 plt.figure(figsize=(8,6))
@@ -152,47 +404,88 @@ sns.histplot(df['price'], kde=True)
 plt.title('Distribuția prețurilor')
 plt.show()
 
-# Matricea de corelație
-correlation_matrix=df.corr(numeric_only=True)
-plt.figure(figsize=(10,8))
-sns.heatmap(correlation_matrix, annot=False, cmap='coolwarm', linewidths=0.5)
-plt.title('Matricea de corelație')
-plt.show()
-
 # Importanța caracteristicilor
 plt.figure(figsize=(10,8))
-sns.barplot(x='Importanta', y='Facilitate', data=df_importanta)
+sns.barplot(x='Importanta', y='Facilitate', data=df_importance)
 plt.title('Importanța caracteristicilor')
 plt.show()
 
-# Plotul reziduurilor pentru modelul de regresie liniară
-plt.figure(figsize=(8,6))
-sns.residplot(x=tinta_testare, y=tinta_predusa.flatten(), lowess=True)
-plt.title('Plotul reziduurilor pentru modelul de regresie liniară')
-plt.xlabel('Valoarea actuală')
-plt.ylabel('Reziduuri')
+# Selectează doar coloanele care nu sunt codificate cu one-hot din DataFrame
+non_one_hot_columns = [col for col in features.columns if col not in one_hot_columns]
+
+# Creează o nouă matrice de date cu doar caracteristicile non-one-hot
+features_non_one_hot = df[non_one_hot_columns]
+
+# Calculează matricea de corelație doar pentru caracteristicile non-one-hot
+correlation_matrix_non_one_hot = features_non_one_hot.corr()
+
+# Afișează matricea de corelație doar pentru cele mai importante 15 atribute
+correlation_matrix=df.corr(numeric_only=True)
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix_non_one_hot, annot=False, cmap='coolwarm', linewidths=0.5)
+plt.title('Matricea de corelație pentru caracteristicile non-one-hot')
 plt.show()
 
 # Plotul reziduurilor pentru modelul de arbore de decizie
 plt.figure(figsize=(8,6))
-sns.residplot(x=tinta_testare, y=tinta_predusa_arbore.flatten(), lowess=True)
+sns.residplot(x=target_test_optimized, y=target_predicted_test_tree_optimized.flatten(), lowess=True)
 plt.title('Plotul reziduurilor pentru modelul de arbore de decizie')
 plt.xlabel('Valoarea actuală')
 plt.ylabel('Reziduuri')
 plt.show()
 
-# Plotul erorii de predicție pentru modelul de regresie liniară
+# Plotul reziduurilor pentru modelul XGBoost
 plt.figure(figsize=(8,6))
-plt.scatter(tinta_testare, tinta_predusa)
-plt.title('Plotul erorii de predicție pentru modelul de regresie liniară')
+sns.residplot(x=target_test_optimized, y=target_predicted_test_xgb_optimized.flatten(), lowess=True)
+plt.title('Plotul reziduurilor pentru modelul XGBoost')
 plt.xlabel('Valoarea actuală')
-plt.ylabel('Valoarea prezisă')
+plt.ylabel('Reziduuri')
+plt.show()
+
+# Plotul reziduurilor pentru modelul Ridge
+plt.figure(figsize=(8,6))
+sns.residplot(x=target_test_optimized, y=target_predicted_test_ridge_optimized.flatten(), lowess=True)
+plt.title('Plotul reziduurilor pentru modelul Ridge')
+plt.xlabel('Valoarea actuală')
+plt.ylabel('Reziduuri')
+plt.show()
+
+# Plotul reziduurilor pentru modelul Random Forest
+plt.figure(figsize=(8,6))
+sns.residplot(x=target_test_optimized, y=target_predicted_test_rf_optimized.flatten(), lowess=True)
+plt.title('Plotul reziduurilor pentru modelul Random Forest')
+plt.xlabel('Valoarea actuală')
+plt.ylabel('Reziduuri')
 plt.show()
 
 # Plotul erorii de predicție pentru modelul de arbore de decizie
 plt.figure(figsize=(8,6))
-plt.scatter(tinta_testare, tinta_predusa_arbore)
+plt.scatter(target_test_optimized, target_predicted_test_tree_optimized)
 plt.title('Plotul erorii de predicție pentru modelul de arbore de decizie')
+plt.xlabel('Valoarea actuală')
+plt.ylabel('Valoarea prezisă')
+plt.show()
+
+# Plotul erorii de predicție pentru modelul XGBoost
+plt.figure(figsize=(8,6))
+plt.scatter(target_test_optimized, target_predicted_test_xgb_optimized)
+plt.title('Plotul erorii de predicție pentru modelul XGBoost')
+plt.xlabel('Valoarea actuală')
+plt.ylabel('Valoarea prezisă')
+plt.show()
+
+# Plotul erorii de predicție pentru modelul Ridge
+plt.figure(figsize=(8,6))
+plt.scatter(target_test_optimized, target_predicted_test_ridge_optimized)
+plt.title('Plotul erorii de predicție pentru modelul Ridge')
+plt.xlabel('Valoarea actuală')
+plt.ylabel('Valoarea prezisă')
+plt.show()
+
+# Plotul erorii de predicție pentru modelul Random Forest
+plt.figure(figsize=(8,6))
+plt.scatter(target_test_optimized, target_predicted_test_rf_optimized)
+plt.title('Plotul erorii de predicție pentru modelul Random Forest')
 plt.xlabel('Valoarea actuală')
 plt.ylabel('Valoarea prezisă')
 plt.show()
