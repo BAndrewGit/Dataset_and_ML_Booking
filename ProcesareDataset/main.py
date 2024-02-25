@@ -13,6 +13,8 @@ df = pd.read_csv('dataset_Romania.csv', low_memory=False)
 # Selectați doar coloanele pe care doriți să le păstrați
 df_nou = df[coloane_de_pastrat].copy()
 
+# Înlocuiți valorile din coloana 'breakfast' cu 1 dacă micul dejun este inclus și 0 în caz contrar
+df_nou['breakfast'] = df_nou['breakfast'].notna().astype(int)
 
 def replace_nan_with_zero(df_copy, columns):
     for column in columns:
@@ -60,6 +62,14 @@ df_nou.columns = df_nou.columns.str.strip()
 # Înlocuiți valorile NaN cu 0
 df_nou = replace_nan_with_zero(df_nou, ['Nota Personal', 'Nota Facilităţi', 'Nota Curăţenie', 'Nota Confort',
                                         'Nota Raport calitate/preţ', 'Nota Locaţie', 'Nota WiFi gratuit'])
+
+# Înlocuirea valorilor lipsă cu mediana
+df_nou['rooms/0/persons'].fillna(df_nou['rooms/0/persons'].median(), inplace=True)
+df_nou['stars'].fillna(df_nou['stars'].median(), inplace=True)
+
+# Mutați coloana 'breakfast' la sfârșitul DataFrame-ului
+breakfast = df_nou.pop('breakfast')
+df_nou['Mic dejun'] = breakfast
 
 df_nou = df_nou[df_nou['price'] > 40]
 df_nou = df_nou.drop_duplicates()
