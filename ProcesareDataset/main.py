@@ -14,7 +14,7 @@ df = pd.read_csv('dataset_Romania.csv', low_memory=False)
 df_nou = df[coloane_de_pastrat].copy()
 
 # Înlocuiți valorile din coloana 'breakfast' cu 1 dacă micul dejun este inclus și 0 în caz contrar
-df_nou['breakfast'] = df_nou['breakfast'].notna().astype(int)
+df_nou['breakfast'] = df_nou['breakfast'].notna().astype(bool)
 
 
 # Definirea funcției pentru înlocuirea valorilor NaN cu 0
