@@ -1,4 +1,5 @@
 import pandas as pd
+import unidecode
 
 # Numele coloanelor pe care doriți să le păstrați
 coloane_de_pastrat = [
@@ -48,7 +49,7 @@ facilitati = ['Vedere la oraș', 'Menaj zilnic', 'Canale prin satelit', 'Zonă d
               'Masă', 'Suport de haine', 'Cadă sau duş', 'Frigider']
 
 # Normalizare facilități (denumiri mici)
-facilitati_normalizate = {facil: facil.lower().replace(' ', '_') for facil in facilitati}
+facilitati_normalizate = {facil: unidecode.unidecode(facil.lower().replace(' ', '_')) for facil in facilitati}
 
 # Adăugați fiecare facilitate ca o nouă coloană
 for facil in facilitati_normalizate.values():
